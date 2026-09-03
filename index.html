@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Giovanna Banana CRM Pro</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #050505;
+            --surface: #111111;
+            --glass: rgba(255, 255, 255, 0.03);
+            --border: rgba(255, 255, 255, 0.08);
+            --accent: #f48037; 
+            --accent-glow: rgba(244, 128, 55, 0.2);
+            --text-main: #ffffff;
+            --text-dim: #a1a1aa;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --radius: 20px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; }
+        
+        body { background: var(--bg); color: var(--text-main); min-height: 100vh; overflow-x: hidden; padding-bottom: 90px; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+
+        /* Reusable Components */
+        .glass-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+        .flex-between { display: flex; justify-content: space-between; align-items: center; }
+        .dim { color: var(--text-dim); font-size: 0.85rem; }
+        
+        /* Sidebar/Navigation */
+        .sidebar { width: 80px; height: 100vh; position: fixed; left: 0; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; padding: 30px 0; gap: 35px; z-index: 100; transition: 0.3s; }
+        .nav-link { color: var(--text-dim); cursor: pointer; transition: 0.3s; display: flex; flex-direction: column; align-items: center; gap: 5px; text-decoration: none; }
+        .nav-link.active { color: var(--accent); }
+        
+        /* Main Layout */
+        main { margin-left: 80px; padding: 40px; max-width: 1200px; margin-right: auto; }
+
+        /* Grid */
+        .dash-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }
+        
+        /* Transaction Styles */
+        .item { display: flex; justify-content: space-between; align-items: center; padding: 16px; border-bottom: 1px solid var(--border); }
+        .item:last-child { border-bottom: none; }
+        .icon-circle { width: 40px; height: 40px; border-radius: 12px; background: var(--glass); display: flex; align-items: center; justify-content: center; margin-right: 15px; }
+
+        /* Form Drawer */
+        .drawer { position: fixed; right: -100%; top: 0; width: 100%; max-width: 450px; height: 100%; background: #0a0a0a; border-left: 1px solid var(--border); z-index: 1001; padding: 40px; transition: 0.5s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: -20px 0 40px rgba(0,0,0,0.5); }
+        .drawer.active { right: 0; }
+        .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); display: none; z-index: 1000; }
+
+        /* Inputs */
+        .input-box { margin-bottom: 20px; }
+        .input-box label { display: block; margin-bottom: 8px; color: var(--text-dim); font-size: 0.8rem; }
+        input, select { width: 100%; padding: 14px; background: #161616; border: 1px solid var(--border); border-radius: 12px; color: white; outline: none; transition: 0.3s; }
+        input:focus { border-color: var(--accent); box-shadow: 0 0 10px var(--accent-glow); }
+
+        .btn { padding: 14px 24px; border-radius: 12px; border: none; font-weight: 600; cursor: pointer; transition: 0.3s; }
+        .btn-primary { background: var(--accent); color: white; width: 100%; }
+        .btn-ghost { background: var(--glass); color: var(--text-dim); }
+
+        /* Progress Bars */
+        .prog-bg { width: 100%; height: 6px; background: var(--border); border-radius: 10px; margin-top: 10px; }
+        .prog-fill { height: 100%; border-radius: 10px; background: var(--accent); transition: 1s cubic-bezier(0.16, 1, 0.3, 1); }
+
+        /* Responsividade */
+        @media (max-width: 768px) {
+            .sidebar { width: 100%; height: 75px; flex-direction: row; bottom: 0; top: auto; justify-content: space-around; padding: 0; border-top: 1px solid var(--border); border-right: none; }
+            main { margin-left: 0; padding: 20px; margin-bottom: 80px; }
+            .dash-grid { grid-template-columns: 1fr; }
+            .nav-link span { font-size: 10px; }
+            h1 { font-size: 1.2rem; }
+        }
+
+        .view { display: none; }
+        .view.active { display: block; }
+        
+        .cat-card { display: flex; align-items: center; justify-content: space-between; padding: 15px; background: var(--glass); border-radius: 15px; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="overlay" id="overlay" onclick="ui.toggleDrawer()"></div>
+
+    <aside class="sidebar">
+        <div class="logo dim" style="margin-bottom: 20px; color: var(--accent)" class="mobile-hide">
+            <i data-lucide="banana" size="30"></i>
+        </div>
+        <div class="nav-link active" onclick="ui.changeTab('dashboard', this)">
+            <i data-lucide="layout-grid"></i><span>Home</span>
+        </div>
+        <div class="nav-link" onclick="ui.changeTab('transactions', this)">
+            <i data-lucide="receipt"></i><span>Extrato</span>
+        </div>
+        <div class="nav-link" onclick="ui.changeTab('categories', this)">
+            <i data-lucide="tags"></i><span>Metas</span>
+        </div>
+        <div class="nav-link" onclick="ui.changeTab('settings', this)">
+            <i data-lucide="settings"></i><span>Ajustes</span>
+        </div>
+    </aside>
+
+    <main>
+        <!-- HEADER COMPARTILHADO -->
+        <header class="flex-between" style="margin-bottom: 30px;">
+            <div>
+                <h1 id="title-context">Dashboard 🍌</h1>
+                <p class="dim" id="date-display"></p>
+            </div>
+            <div style="display:flex; gap: 10px">
+                <input type="month" id="filter-month" style="width: auto; padding: 8px;">
+                <button class="btn btn-primary" onclick="ui.toggleDrawer()" style="width: auto; padding: 10px 20px;">+ Novo</button>
+            </div>
+        </header>
+
+        <!-- ABA: DASHBOARD -->
+        <div id="view-dashboard" class="view active">
+            <div class="dash-grid">
+                <section class="glass-card">
+                    <div class="flex-between">
+                        <span class="dim">Gastos Totais do Mês</span>
+                        <i data-lucide="info" size="16" class="dim"></i>
+                    </div>
+                    <div style="margin: 15px 0;">
+                        <h2 style="font-size: 2.5rem;" id="dash-spent">R$ 0,00</h2>
+                        <div class="flex-between" style="margin-top: 10px;">
+                            <span class="dim" id="dash-meta-info">Meta: R$ 1.000</span>
+                            <span id="dash-percent">0%</span>
+                        </div>
+                        <div class="prog-bg"><div id="dash-main-prog" class="prog-fill" style="width: 0%"></div></div>
+                    </div>
+                    <div style="height: 250px; margin-top: 30px;">
+                        <canvas id="chart-daily"></canvas>
+                    </div>
+                </section>
+
+                <section style="display: flex; flex-direction: column; gap: 20px;">
+                    <div class="glass-card" style="background: linear-gradient(135deg, #f48037, #b34a05); border: none;">
+                        <p style="color: rgba(255,255,255,0.8); font-size: 0.8rem;">REAL STATUS: ALUGUEL</p>
+                        <h2 id="dash-rent">R$ 200,00</h2>
+                        <p style="font-size: 0.7rem; margin-top: 10px; opacity: 0.7;">600 aluguel - 400 ajuda pai</p>
+                    </div>
+
+                    <div class="glass-card">
+                        <h3 style="font-size: 0.9rem; margin-bottom: 15px;">Gastos por Categoria</h3>
+                        <canvas id="chart-pie" height="200"></canvas>
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        <!-- ABA: TRANSAÇÕES (EXTRATO) -->
+        <div id="view-transactions" class="view">
+            <div class="glass-card">
+                <div id="full-history-list"></div>
+            </div>
+        </div>
+
+        <!-- ABA: CATEGORIAS & METAS -->
+        <div id="view-categories" class="view">
+            <div class="glass-card" style="margin-bottom: 25px;">
+                <h3>Nova Meta de Categoria</h3>
+                <div class="dash-grid" style="grid-template-columns: 2fr 1fr 1fr; margin-top: 15px; align-items: flex-end;">
+                    <div class="input-box">
+                        <label>Nome da Categoria</label>
+                        <input type="text" id="cat-name-in" placeholder="Ex: Farmácia">
+                    </div>
+                    <div class="input-box">
+                        <label>Meta R$</label>
+                        <input type="number" id="cat-limit-in" placeholder="200">
+                    </div>
+                    <button class="btn btn-primary" style="margin-bottom: 20px;" onclick="ctrl.addCategory()">Adicionar</button>
+                </div>
+            </div>
+            <div id="category-manager-list"></div>
+        </div>
+
+        <!-- ABA: CONFIGURAÇÕES -->
+        <div id="view-settings" class="view">
+            <div class="glass-card" style="max-width: 600px;">
+                <h3>Configurações Globais</h3>
+                <br>
+                <div class="input-box">
+                    <label>Limite Mensal de Gastos (Giovanna Banana)</label>
+                    <input type="number" id="cfg-max-month" onchange="ctrl.updateConfig()">
+                </div>
+                <div class="input-box">
+                    <label>Quanto o pai manda para o Aluguel?</label>
+                    <input type="number" id="cfg-dad-help" onchange="ctrl.updateConfig()">
+                </div>
+                <hr style="opacity: 0.1; margin: 20px 0;">
+                <div style="display:flex; gap: 10px;">
+                    <button class="btn btn-ghost" onclick="ctrl.export()">Exportar JSON</button>
+                    <button class="btn btn-ghost" onclick="ctrl.clearAll()">Resetar Tudo</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- DRAWER FORM -->
+    <div class="drawer" id="drawer">
+        <h3 style="margin-bottom: 25px;">Nova Transação</h3>
+        <div class="input-box">
+            <label>O que comprou / Nome do recebimento</label>
+            <input type="text" id="t-desc">
+        </div>
+        <div class="input-box">
+            <label>Valor (R$)</label>
+            <input type="number" id="t-val">
+        </div>
+        <div class="input-box">
+            <label>Data</label>
+            <input type="date" id="t-date">
+        </div>
+        <div class="input-box">
+            <label>Categoria</label>
+            <select id="t-cat"></select>
+        </div>
+        <div class="input-box">
+            <label>Tipo</label>
+            <select id="t-type">
+                <option value="out">Gasto (Saída)</option>
+                <option value="in">Recebimento (Entrada)</option>
+            </select>
+        </div>
+        <br>
+        <button class="btn btn-primary" onclick="ctrl.saveTransaction()">Salvar Registro</button>
+        <br><br>
+        <button class="btn btn-ghost" style="width:100%" onclick="ui.toggleDrawer()">Cancelar</button>
+    </div>
+
+    <script>
+        /* MODELO DE DADOS & STORAGE */
+        const storage = {
+            save(data) { localStorage.setItem('gb_pro_v4', JSON.stringify(data)); },
+            load() {
+                return JSON.parse(localStorage.getItem('gb_pro_v4')) || {
+                    transactions: [],
+                    categories: [{name: 'ifood', limit: 200}, {name: 'aluguel', limit: 600}, {name: 'transporte', limit: 150}],
+                    config: { monthlyLimit: 1000, dadHelp: 400 }
+                };
+            }
+        }
+
+        /* CONTROLADOR */
+        const ctrl = {
+            data: storage.load(),
+
+            init() {
+                this.renderAll();
+                this.initCharts();
+                lucide.createIcons();
+            },
+
+            saveTransaction() {
+                const desc = document.getElementById('t-desc').value;
+                const val = parseFloat(document.getElementById('t-val').value);
+                const date = document.getElementById('t-date').value;
+                const cat = document.getElementById('t-cat').value;
+                const type = document.getElementById('t-type').value;
+
+                if (!desc || isNaN(val) || !date) return alert("Ei! Falta informação.");
+
+                this.data.transactions.push({ id: Date.now(), desc, val, date, cat, type });
+                storage.save(this.data);
+                ui.toggleDrawer();
+                this.renderAll();
+                this.updateCharts();
+            },
+
+            deleteTransaction(id) {
+                this.data.transactions = this.data.transactions.filter(t => t.id !== id);
+                storage.save(this.data);
+                this.renderAll();
+                this.updateCharts();
+            },
+
+            addCategory() {
+                const name = document.getElementById('cat-name-in').value.toLowerCase().trim();
+                const limit = parseFloat(document.getElementById('cat-limit-in').value);
+                if (!name || isNaN(limit)) return;
+                this.data.categories.push({ name, limit });
+                storage.save(this.data);
+                this.renderAll();
+            },
+
+            updateConfig() {
+                this.data.config.monthlyLimit = parseFloat(document.getElementById('cfg-max-month').value);
+                this.data.config.dadHelp = parseFloat(document.getElementById('cfg-dad-help').value);
+                storage.save(this.data);
+                this.renderAll();
+            },
+
+            renderAll() {
+                const selectedMonth = document.getElementById('filter-month').value;
+                const filtered = this.data.transactions.filter(t => t.date.startsWith(selectedMonth));
+                
+                // Dash Totals
+                let expense = 0; let income = 0; let ifoodTotal = 0;
+                filtered.forEach(t => {
+                    if(t.type === 'out') {
+                        expense += t.val;
+                        if(t.cat === 'ifood') ifoodTotal += t.val;
+                    } else income += t.val;
+                });
+
+                document.getElementById('dash-spent').innerText = ui.fmt(expense);
+                document.getElementById('dash-rent').innerText = ui.fmt(600 - this.data.config.dadHelp);
+                
+                const percent = Math.min((expense / this.data.config.monthlyLimit) * 100, 100).toFixed(1);
+                document.getElementById('dash-percent').innerText = percent + '%';
+                document.getElementById('dash-main-prog').style.width = percent + '%';
+                document.getElementById('dash-meta-info').innerText = `Meta: ${ui.fmt(this.data.config.monthlyLimit)}`;
+                
+                if (expense > this.data.config.monthlyLimit) document.body.style.borderTop = "5px solid var(--danger)";
+                else document.body.style.borderTop = "none";
+
+                // History Render
+                const histCont = document.getElementById('full-history-list');
+                histCont.innerHTML = filtered.length ? '' : '<p class="dim" style="text-align:center">Nenhuma transação neste mês</p>';
+                filtered.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(t => {
+                    histCont.innerHTML += `
+                        <div class="item">
+                            <div style="display:flex; align-items:center">
+                                <div class="icon-circle"><i data-lucide="${t.type === 'in' ? 'arrow-up' : 'shopping-bag'}" size="18" style="color: ${t.type === 'in' ? 'var(--success)' : 'var(--accent)'}"></i></div>
+                                <div><strong>${t.desc}</strong><br><span class="dim">${t.cat} • ${t.date}</span></div>
+                            </div>
+                            <div style="text-align:right">
+                                <p style="font-weight:700; color: ${t.type === 'in' ? 'var(--success)' : 'white'}">${t.type === 'out' ? '-' : '+'} ${ui.fmt(t.val)}</p>
+                                <button onclick="ctrl.deleteTransaction(${t.id})" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:11px">Remover</button>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                // Category Settings Render
+                const catList = document.getElementById('category-manager-list');
+                catList.innerHTML = '';
+                this.data.categories.forEach(c => {
+                    const spent = filtered.filter(t => t.cat === c.name && t.type === 'out').reduce((acc, curr) => acc + curr.val, 0);
+                    const perc = Math.min((spent / c.limit) * 100, 100);
+                    catList.innerHTML += `
+                        <div class="cat-card">
+                            <div style="width: 40%"><strong>${c.name.toUpperCase()}</strong><br><span class="dim">${ui.fmt(spent)} gastos</span></div>
+                            <div style="flex:1; margin: 0 20px">
+                                <div class="prog-bg"><div class="prog-fill" style="width: ${perc}%; background: ${spent > c.limit ? 'var(--danger)' : 'var(--accent)'}"></div></div>
+                                <span class="dim" style="font-size:10px">${perc.toFixed(0)}% da meta de ${ui.fmt(c.limit)}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                // Fill Form Categories
+                const sel = document.getElementById('t-cat');
+                sel.innerHTML = this.data.categories.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+
+                // Settings Value
+                document.getElementById('cfg-max-month').value = this.data.config.monthlyLimit;
+                document.getElementById('cfg-dad-help').value = this.data.config.dadHelp;
+
+                lucide.createIcons();
+            },
+
+            initCharts() {
+                const ctxDaily = document.getElementById('chart-daily').getContext('2d');
+                this.chartDaily = new Chart(ctxDaily, {
+                    type: 'line',
+                    data: { labels: [], datasets: [{ label: 'Gastos R$', data: [], borderColor: '#f48037', tension: 0.4, fill: true, backgroundColor: 'rgba(244,128,55,0.1)' }] },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { y: { display: false }, x: { grid: { display: false }, ticks: { color: '#888' } } }, plugins: { legend: { display: false } } }
+                });
+
+                const ctxPie = document.getElementById('chart-pie').getContext('2d');
+                this.chartPie = new Chart(ctxPie, {
+                    type: 'doughnut',
+                    data: { labels: [], datasets: [{ data: [], backgroundColor: ['#f48037', '#b34a05', '#161616', '#222'], borderWidth: 0 }] },
+                    options: { responsive: true, cutout: '70%', plugins: { legend: { position: 'bottom', labels: { color: '#888' } } } }
+                });
+                this.updateCharts();
+            },
+
+            updateCharts() {
+                if(!this.chartDaily) return;
+                const filtered = this.data.transactions.filter(t => t.date.startsWith(document.getElementById('filter-month').value));
+                
+                // Update Daily Line
+                const days = [...new Set(filtered.map(t => t.date.split('-')[2]))].sort();
+                const sums = days.map(d => filtered.filter(t => t.date.endsWith(d) && t.type === 'out').reduce((a,b) => a+b.val, 0));
+                this.chartDaily.data.labels = days;
+                this.chartDaily.data.datasets[0].data = sums;
+                this.chartDaily.update();
+
+                // Update Category Pie
+                const catData = {};
+                filtered.filter(t => t.type === 'out').forEach(t => catData[t.cat] = (catData[t.cat] || 0) + t.val);
+                this.chartPie.data.labels = Object.keys(catData);
+                this.chartPie.data.datasets[0].data = Object.values(catData);
+                this.chartPie.update();
+            },
+
+            export() { 
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(this.data));
+                const dlAnchorElem = document.createElement('a');
+                dlAnchorElem.setAttribute("href", dataStr);
+                dlAnchorElem.setAttribute("download", `financas_giovanna.json`);
+                dlAnchorElem.click();
+            },
+
+            clearAll() { if(confirm("Deseja apagar tudo?")) { localStorage.clear(); location.reload(); } }
+        }
+
+        /* UI INTERFACE */
+        const ui = {
+            fmt: (v) => v.toLocaleString('pt-br', { style: 'currency', currency: 'BRL' }),
+            
+            toggleDrawer() {
+                document.getElementById('drawer').classList.toggle('active');
+                const overlay = document.getElementById('overlay');
+                overlay.style.display = (overlay.style.display === 'block') ? 'none' : 'block';
+                if(!document.getElementById('t-date').value) document.getElementById('t-date').value = new Date().toISOString().substring(0, 10);
+            },
+
+            changeTab(tabId, el) {
+                document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+                document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+                document.getElementById('view-' + tabId).classList.add('active');
+                el.classList.add('active');
+                document.getElementById('title-context').innerText = tabId.charAt(0).toUpperCase() + tabId.slice(1) + " 🍌";
+            }
+        }
+
+        // INIT
+        window.onload = () => {
+            document.getElementById('filter-month').value = new Date().toISOString().substring(0, 7);
+            document.getElementById('date-display').innerText = new Intl.DateTimeFormat('pt-br', { month: 'long', year: 'numeric' }).format(new Date());
+            ctrl.init();
+        }
+    </script>
+</body>
+</html>
